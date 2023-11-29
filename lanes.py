@@ -35,7 +35,7 @@ def region_of_interest(image):
 
 def main():
     # image = cv.imread('lane.jpg')
-    image = cv.imread('C:/Users/alexa/OneDrive/Desktop/P_LANG/Assignment_2/Learning_Open_CV/testing_stuff/lane.jpg')
+    image = cv.imread('lane.jpg')
     # cv.imshow('Original', image)
     lane_image = np.copy(image)                                     # creating copy of the image
     cny = canny(lane_image)
@@ -43,7 +43,9 @@ def main():
     cropped_image = region_of_interest(cny)
     cv.imshow('Result of ROI', cropped_image)                       # changing it to show Region of Interest
 
-    lines = cv.HoughLinesP(cropped_image, rho=2, theta=np.pi/180, threshold=100, lines= np.array([]), minLineLength=40, maxLineGap=5)
+    lines = cv.HoughLinesP(cropped_image, rho=2, theta=np.pi/180,
+                           threshold=100, lines= np.array([]),
+                           minLineLength=40, maxLineGap=5)
 
     cv.waitKey(0)                                          # display images for some time
     # plt.imshow(cny)

@@ -33,15 +33,32 @@ def canny(image):
     canny = cv2.Canny(blur, 50, 150)
     return canny
 
+# def display_lines(image, lines):
+#     line_image = np.zeros_like(image)
+#     if lines is not None:
+#         for line in lines:
+#             print(line)
+#             x1, y1, x2, y2 = line
+#             x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
+#             cv2.line(line_image, (x1, y1), (x2, y2), (255, 0, 0), 10)
+#     return line_image
+ 
 def display_lines(image, lines):
     line_image = np.zeros_like(image)
     if lines is not None:
-        for x1, y1, x2, y2 in lines:
-            cv2.line(line_image, (x1, y1), (x2, y2), (255, 0, 0), 10)
+        for line in lines:
+            print(line)
+            x1, y1, x2, y2 = line  # Extract the coordinates from the array
+            # Filter out lines with extreme coordinates (you can adjust the threshold as needed)
+            if abs(x1 - x2) > 10 and abs(y1 - y2) > 10:
+                x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)  # Convert to integers
+                cv2.line(line_image, (x1, y1), (x2, y2), (255, 0, 0), 10)
     return line_image
+
 
 def region_of_interest(image):
     height = image.shape[0]
+    # TODO: One thing that must be changed are the values in this numpy array, right now they are fixed, but they should be able to acclimate to different videos
     polygons = np.array([
     [(200, height), (1100, height), (550, 250)]
     ])
@@ -50,6 +67,7 @@ def region_of_interest(image):
     masked_image = cv2.bitwise_and(image, mask)
     return masked_image
 
+#NOTE: This is for individual images, 
 # image = cv2.imread('lane.jpg')
 # lane_image = np.copy(image)
 
@@ -64,17 +82,24 @@ def region_of_interest(image):
 # cv2.imshow('result',combo_image)
 # cv2.waitKey(0)
 
+#NOTE: This is for videos 
 cap = cv2.VideoCapture('project_video.mp4')
 while(cap.isOpened()):
+    # get 1 frame from the video
     _, frame = cap.read()
+    # generate a canny image from the frame
     canny_image = canny(frame)
+    # focus region to be the lower triangular portion of the image
     cropped_image = region_of_interest(canny_image)
-    lines = cv2.HoughLinesP(cropped_image, 2, np.pi/180, 100, np.array([]), minLineLength=40, maxLineGap=5)
+    lines = cv2.HoughLinesP(image=cropped_image,rho=2, theta=np.pi/180,
+                            threshold=100, lines=np.array([]), 
+                            minLineLength=40, maxLineGap=5)
     averaged_lines = average_slope_intercept(frame, lines)
     line_image = display_lines(frame, averaged_lines)
     combo_image = cv2.addWeighted(frame, 0.8, line_image, 1, 1)
     cv2.imshow('result',combo_image)
     if cv2.waitKey(1) == ord('q'):
         break
+
 cap.release()
 cv2.destroyAllWindows()
