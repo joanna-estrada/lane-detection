@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+from alt_edge_detect import *
 
 def make_coordinates(image, line_parameters):
     slope, intercept = line_parameters
@@ -60,12 +61,40 @@ def region_of_interest(image):
     height = image.shape[0]
     # TODO: One thing that must be changed are the values in this numpy array, right now they are fixed, but they should be able to acclimate to different videos
     polygons = np.array([
-    [(200, height), (1100, height), (550, 250)]
+    [(100, height), (1300, height), (550, 250)]
     ])
     mask = np.zeros_like(image)
     cv2.fillPoly(mask, polygons, 255)
     masked_image = cv2.bitwise_and(image, mask)
     return masked_image
+
+def do_lines_nearest_to_center(image, lines):
+    # Calculate the center point of the region of interest (ROI)
+    roi_width = cropped_image.shape[1]
+    roi_height = cropped_image.shape[0]
+    center_x = roi_width // 2
+    center_y = roi_height // 2
+
+    # List to store line segments closest to the center
+    closest_lines = []
+
+    for line in lines:
+        x1, y1, x2, y2 = line[0]  # Extract line coordinates
+        # Calculate the midpoint of the line segment
+        midpoint_x = (x1 + x2) // 2
+        midpoint_y = (y1 + y2) // 2
+        # Calculate the Euclidean distance from the midpoint to the center
+        distance_to_center = np.sqrt((midpoint_x - center_x)**2 + (midpoint_y - center_y)**2)
+
+        # Set a threshold distance for considering lines
+        threshold_distance = 50  # Adjust as needed
+
+        # Check if the line is close enough to the center
+        if distance_to_center < threshold_distance:
+            closest_lines.append(line)
+        
+    return np.array(closest_lines)
+
 
 #NOTE: This is for individual images, 
 # image = cv2.imread('lane.jpg')
@@ -86,15 +115,21 @@ def region_of_interest(image):
 cap = cv2.VideoCapture('project_video.mp4')
 while(cap.isOpened()):
     # get 1 frame from the video
-    _, frame = cap.read()
+    _, frame = cap.read()                                                       # frame is RGB
     # generate a canny image from the frame
-    canny_image = canny(frame)
+    # canny_image = canny(frame)
+    thresh_img = color_thresholding(frame)                                      # get RGB, returns HSV
+    canny_image = to_canny(thresh_img)                                          #gets HSV, returns RGB
     # focus region to be the lower triangular portion of the image
     cropped_image = region_of_interest(canny_image)
-    lines = cv2.HoughLinesP(image=cropped_image,rho=2, theta=np.pi/180,
-                            threshold=100, lines=np.array([]), 
-                            minLineLength=40, maxLineGap=5)
-    averaged_lines = average_slope_intercept(frame, lines)
+    # cv2.imshow("haha",cropped_image)
+    # cropped_image = cv2.cvtColor(cropped_image, cv2.COLOR_RGB2GRAY)
+    lines = cv2.HoughLinesP(image=cropped_image,rho=21, theta=np.pi/180,
+                            threshold=20, lines=np.array([]), 
+                            minLineLength=10, maxLineGap=1)
+    closest_to_middle = do_lines_nearest_to_center(cropped_image, lines)
+
+    averaged_lines = average_slope_intercept(cropped_image, closest_to_middle)
     line_image = display_lines(frame, averaged_lines)
     combo_image = cv2.addWeighted(frame, 0.8, line_image, 1, 1)
     cv2.imshow('result',combo_image)
