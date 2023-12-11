@@ -24,7 +24,7 @@
 This project leverages the tools in Python and OpenCV to detect lanes in dash cam footage. My goal was to become more acquaintted with AI and computer vision algorithms to in my software to identify straight lanes, providing real-time visual feedback to users.
 
 ## What was implemented
-In computer vision, a common tool for isolating objects in an image comes in the form of <masking>. To mask an image, we need to create a completely black (blank) image with the same height and width as the image we intend to mask. When we place a white polygon, such as a triangle or a square, within the blank image, we can merge this with the original, resulting in a new image containing contents of the original image only within the boundaries of the polygon.
+In computer vision, a common tool for isolating objects in an image comes in the form of *masking*. To mask an image, we need to create a completely black (blank) image with the same height and width as the image we intend to mask. When we place a white polygon, such as a triangle or a square, within the blank image, we can merge this with the original, resulting in a new image containing contents of the original image only within the boundaries of the polygon.
 
 ```python
 # NOTE: This exact code isn't in my program, but demonstrates how masks work
