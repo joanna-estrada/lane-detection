@@ -73,16 +73,16 @@ This is one of the weaker portions of my project. I hard coded a triangular poly
 # TODO: change this to be more of a trapezoid within the center of the image, 
 ```
 
-*Hough Lines*
+### *Hough Lines*
 Basically, you run this and it tries to find lines in an image. I would try to identify some lines in the frame, then run it through a filter so that the lines nearest to the center of the image would remain.
 I then calculated the average slope intercept, which also partitioned lines depending on whether their slope was positive (probably a lane on the left) OR negative (probably the lane on the right). Then averaged out all positive lines, and all the negative lines, to get a pair of averaged lines hopefully representing the lanes.
 Since we used 8 framed, we then got the average of those 8 best fitting left and right line pairs. I used these averages as a basis for the lines could be, then formed a trapezoid around that region, large enough for where the road might be. then I made smaller masks from finding the center of the trapezoid and making a left portion and a right portion. this is easier to identify the left vs the right lanes rather than looking at both in one go. When you do that, it may confuse parts of one lane for the other.  
 
-*Intended next step*
+### *Intended next step*
 - test out whether there really are extra screen artifacts inside the pre-processing mask, cutting it down either with contour detection (changing the trapezoid mask) or changing the color thresholding ranges for yellow and white (changing the color thresholding mask)
 - this is what I INTENDED to do, but I ended up doing something else in the process.
 
-*Actual next step*
+### *Actual next step*
 I basically used the mask found from the hough lines, most of the time, that was good enough to identify the lanes, there still are some artifacts that screw with it, but its okay. I ran another algorithm on this image, I tried to find the largest dotted line on the left and right side of the trapezoid, and the largest solid line on the right side of the trapezoid. I then recorded a skinnier line that would strike through that largest found line. 
 Sometimes, it would confuse artifacts on one side of the screen as the largest solid line, or small pixel artifacts as part of the largest dotted line, but the method I found seemed to be a generally good enough.
 What I found was at times, these largest dotted/solid lines would be exactly the same, and it would only be the same (that is to say, the averaged line that would strike through those largest found lines), when it was actually on a lane, regardless of whether the lane was solid or dotted. 
@@ -90,7 +90,7 @@ After finding that out, I would record whenever the largest solid and dotted lin
 
 So I used this information as a way of guiding the slope of what the lane should look like. This would help for real time processing, when filtering out lines from artifacts.
 
-*Real time processing*
+### *Real time processing*
 Some things are the same, but less complicated as I used the trapezoid mask along with the slopes I found, as 'heuristic' guides for identifying the lanes. The order of the real time algorithm was shorter:
 - Color threshold the image
 - apply a simple binary threshold on that image (not edge detection, but setting a color threshold, making any color above the threshold value white, any color below it black)
@@ -102,12 +102,12 @@ Some things are the same, but less complicated as I used the trapezoid mask alon
 - display those lines found onto the original image.
 
 ## Challenges faced along the way
-*Line and HSV color handling in openCV*
+### *Line and HSV color handling in openCV*
 One tricky thing was the way values such as HSV colors and lines are formatted in OpenCV. there is no dedicated color object or line object for these values, but instead, each value is represented in a numpy array. so a line would be an array of length four [x1, y1, x2,y2]. RGB values were simple enough [0-255,0-255,0-255], but it got trickier when handling HSV values. 
 The HSV color wheel is typically represented with a cone. The Hue of a color represented in degrees(0-360), while the Saturation and Value of the color are represented as percentages (0%-100%). In openCV, the HSV values were represented by dividing the hue in half, and using 255 as 100% so HSV values would look like: [0-180, 0-255, 0-255].
 
 
-*Knowing which Algorithm would work*
+### *Knowing which Algorithm would work*
 I mentioned before that I used a rectangle to cut out the upper 1/3rd rectangle as well as a triangle near the center the image as a simple way of ridding the background. The more advanced alternative would have been using a combination of thresholds along with a distance transform to segment the background from the foreground. 
 Distance transforms are useful as you can use this to determine the distance between pixel clusters. One thing I experimented with was cutting out white pixel clusters depending on some distance they had to black pixels, with the intention of cutting out larger bulkier artifacts. but this had limited use, would at times cut out parts of the lanes, and generally leave behind the edges of the bulky object (meaning more ways to confuse something non linear for a line!)
 I may try and implement this later such that the lowest point of the background could be used to find the horizon in the image, then cut out a trapezoid relative to that horizon.It would be cleaner 
