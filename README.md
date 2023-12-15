@@ -5,18 +5,14 @@ This project leverages the tools in Python and OpenCV to detect lanes in dash ca
 ## What was implemented
 In computer vision, a common tool for isolating objects in an image comes in the form of *masking*. To mask an image, we need to create a completely black (blank) image with the same height and width as the image we intend to mask. When we place a white polygon, such as a triangle or a square, within the blank image, we can merge this with the original, resulting in a new image containing contents of the original image only within the boundaries of the polygon.
 
-
 For dash cam frames, I went with a simple removal of the upper 1/3rd of the image since that is where most of the background is.
-
 
 **Pre Processing**
 To get started, I first needed to find a good mask to identify where the road was and cut out the background parts of the image. Most of the roads in the dashcam footage took up a trapezoidal area within the frame and I wanted to mask just this trapezoid. So I used the first 8 frames of a given dashcam video as a way of priming my algorithm that would identify the images in real time.
 
-
 ### *Color Thresholding*
 A more advanced way of masking is through use of color thresholds. Given a range of colors, the 'cv2.inRange()' function can be used to essentially mask the image by color. With this in mind, I used a color threshold to capture a range of yellows and whites, matching the lane colors that were commonly found in dash cam footage.
 This would cut out large portions of the picture, leaving behind the lanes along with a few remaining artifacts.
-
 
 ### *Sobel Edge Detection*
 There are many ways of detecting edges, borders, or lines of an image in computer vision. One such was is sobel edge detection, which can be good for identifying linear patterns either in the vertical direction (cv2.Sobel(dx=1, dy=0)) or the horizontal directon (cv2.Sobel(dx=0, dy=1)). Since most lanes in dashcam footage are usually oriented with steep curves, I used sobel in the x direction to identify prominent vertically oriented edges within the image.
@@ -24,22 +20,24 @@ There are many ways of detecting edges, borders, or lines of an image in compute
 ### *arbitrary masking for a region of interest*
 A small triangular polygon was used tomask a portion of the image. It was intended for one specific video, but ended up working for a lot of the data I tried. So I just kept it
 
-### *Hough Lines*
-Basically, you run this and it tries to find lines in an image. I would try to identify some lines in the frame, then run it through a filter so that the lines nearest to the center of the image would remain.
-I then calculated the average slope intercept, which also partitioned lines depending on whether their slope was positive (probably a lane on the left) OR negative (probably the lane on the right). Then averaged out all positive lines, and all the negative lines, to get a pair of averaged lines hopefully representing the lanes.
-Since we used 8 framed, we then got the average of those 8 best fitting left and right line pairs. I used these averages as a basis for the lines could be, then formed a trapezoid around that region, large enough for where the road might be. then I made smaller masks from finding the center of the trapezoid and making a left portion and a right portion. this is easier to identify the left vs the right lanes rather than looking at both in one go. When you do that, it may confuse parts of one lane for the other.  
+### *Hough Line Transform for Lane Detection*
+The Hough Line Transform is a pivotal technique in this project, effectively utilized for discerning linear patterns in an image. Initially, the algorithm attempts to identify potential lines in the frame. To refine this, a filtering process is employed, prioritizing lines closer to the image's center, as they are more likely to represent lane markings. Subsequently, an evaluation of the average slope intercept of these lines is conducted. This step is crucial as it segregates the detected lines based on their slope orientation: positive slopes indicating left-side lanes and negative slopes for right-side lanes. 
+By averaging the lines with similar slopes, I derived two distinct sets of averaged lines, each representing the respective lane markings. Utilizing the first 8 frames of the dashcam footage, an average of these optimal left and right line pairs is calculated. This average serves as a foundation for hypothesizing the lane positions.
+In the next phase, a trapezoidal region, approximating the road area, is constructed around these average lines. This trapezoid then facilitates the creation of smaller, more targeted masks. By isolating the trapezoid's center and bifurcating it into left and right segments, the algorithm enhances its precision in differentiating between the lanes. This approach mitigates potential confusion where elements of one lane might be misconstrued as part of the other, thereby bolstering the accuracy of lane identification.
 
-### *Intended next step*
-- test out whether there really are extra screen artifacts inside the pre-processing mask, cutting it down either with contour detection (changing the trapezoid mask) or changing the color thresholding ranges for yellow and white (changing the color thresholding mask)
-- this is what I INTENDED to do, but I ended up doing something else in the process.
+### *Intended Next Steps*
+Initially, my plan involved further refining the pre-processing mask to reduce screen artifacts. This refinement was to be achieved through two primary strategies:
+1. **Contour Detection:** Modifying the trapezoidal mask to more accurately encompass the lane areas while excluding irrelevant sections of the frame.
+2. **Color Threshold Adjustments:** Based on the contours detected, fine-tuning the color thresholding ranges for yellow and white to enhance the precision of lane identification and reduce noise from non-lane elements.
 
-### *Actual next step*
-I basically used the mask found from the hough lines, most of the time, that was good enough to identify the lanes, there still are some artifacts that screw with it, but its okay. I ran another algorithm on this image, I tried to find the largest dotted line on the left and right side of the trapezoid, and the largest solid line on the right side of the trapezoid. I then recorded a skinnier line that would strike through that largest found line. 
-Sometimes, it would confuse artifacts on one side of the screen as the largest solid line, or small pixel artifacts as part of the largest dotted line, but the method I found seemed to be a generally good enough.
-What I found was at times, these largest dotted/solid lines would be exactly the same, and it would only be the same (that is to say, the averaged line that would strike through those largest found lines), when it was actually on a lane, regardless of whether the lane was solid or dotted. 
-After finding that out, I would record whenever the largest solid and dotted lines were the same line. This ended up being a good enough indicator for whether the line was a lane or not.
+However, this intended course of action was altered as the project progressed, leading to a different approach in the subsequent steps.
 
-So I used this information as a way of guiding the slope of what the lane should look like. This would help for real time processing, when filtering out lines from artifacts.
+### *Actual Next Steps and Innovations*
+In practice, the mask derived from the Hough Line Transform often proved sufficient for lane detection, though some artifacts persisted. To address this, I implemented an additional algorithm focusing on line pattern recognition within the trapezoid-shaped lane area. This algorithm specifically aimed to identify the most prominent dotted (largest hough line with several spacings) and solid lines (largest linearly oriented rectangular contour) on either side of the trapezoid.
+
+The challenge arose when distinguishing actual lane markings from similar-looking artifacts. Despite these occasional confusions, the method generally yielded reliable results. A key observation was that the largest dotted and solid lines identified often coincided with actual lane lines, particularly when these lines were consistent across frames, indicating a lane marking irrespective of it being solid or dotted.
+
+This discovery led to a novel approach: recording instances where the largest solid and dotted lines converged into a single line. This convergence served as a reliable indicator of actual lane presence. Thus, the algorithm not only identified lanes but also guided the slope calculation for real-time lane tracking, effectively differentiating between genuine lane lines and artifacts. This approach significantly improved the system's capability to process and filter out irrelevant lines, enhancing overall accuracy in real-time lane detection.
 
 ### *Real time processing*
 Some things are the same, but less complicated as I used the trapezoid mask along with the slopes I found, as 'heuristic' guides for identifying the lanes. The order of the real time algorithm was shorter:
