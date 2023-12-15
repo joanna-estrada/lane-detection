@@ -10,22 +10,19 @@ For dash cam frames, I went with a simple removal of the upper 1/3rd of the imag
 
 
 **Pre Processing**
-To get started, I first needed to find a good mask to identify where the road was and cut out the background parts of the image. Most of the roads in the dashcam footage took up a trapezoidal area within the frame and I wanted to mask just this trapezoid. So I used the first 8 frames of a given dashcam vidoe as a way of priming my algorithm that would identify the images in real time.  
+To get started, I first needed to find a good mask to identify where the road was and cut out the background parts of the image. Most of the roads in the dashcam footage took up a trapezoidal area within the frame and I wanted to mask just this trapezoid. So I used the first 8 frames of a given dashcam video as a way of priming my algorithm that would identify the images in real time.
 
 
 ### *Color Thresholding*
-A more advanced way of masking is through use of color thresholds. Given a range of colors, the 'cv2.inRange()' function can be used to essentially mask the image by color. With this in mind, I used a color threshold to capture a range of yellows and whites that were commonly found in dash cam footage.
+A more advanced way of masking is through use of color thresholds. Given a range of colors, the 'cv2.inRange()' function can be used to essentially mask the image by color. With this in mind, I used a color threshold to capture a range of yellows and whites, matching the lane colors that were commonly found in dash cam footage.
 This would cut out large portions of the picture, leaving behind the lanes along with a few remaining artifacts.
 
 
 ### *Sobel Edge Detection*
-There are many ways of detecting edges, borders, or lines of an image in computer vision. One such was is sobel edge detection, which can be good for identifying linear patterns either in the vertical direction (cv2.Sobel(dx=1, dy=0)) or the horizontal directon (cv2.Sobel(dx=0, dy=1)).Since most lanes are usually oriented in steep curves in a dashcam, I used sobel in the x direction to identify the prominent vertically oriented edges within the image.
+There are many ways of detecting edges, borders, or lines of an image in computer vision. One such was is sobel edge detection, which can be good for identifying linear patterns either in the vertical direction (cv2.Sobel(dx=1, dy=0)) or the horizontal directon (cv2.Sobel(dx=0, dy=1)). Since most lanes in dashcam footage are usually oriented with steep curves, I used sobel in the x direction to identify prominent vertically oriented edges within the image.
 
 ### *arbitrary masking for a region of interest*
-This is one of the weaker portions of my project. I hard coded a triangular polygon to mask a portion of the image. It was intended for one specific video, but ended up working for a lot of the data I tried. So I just kept it
-```python
-# TODO: change this to be more of a trapezoid within the center of the image, 
-```
+A small triangular polygon was used tomask a portion of the image. It was intended for one specific video, but ended up working for a lot of the data I tried. So I just kept it
 
 ### *Hough Lines*
 Basically, you run this and it tries to find lines in an image. I would try to identify some lines in the frame, then run it through a filter so that the lines nearest to the center of the image would remain.
