@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 
 def display_lines(image, lines):
     line_image = np.zeros_like(image)
-    if lines:# exist
+    if lines:
         for x1,y1,x2,y2 in lines:
             cv.line(img=line_image, pt1=(x1,y1),pt2=(x2,y2), color=(255,0,0), thickness=10)
     return line_image 
@@ -13,8 +13,8 @@ def make_coordinates(image, line_parameters):
     slope, intercept = line_parameters
     y1 = image.shape[0]
     y2 = int(y1*(3/5))
-    x1 = int((y1-intercept)/slope)
-    x2 = int((y2-intercept)/slope)
+    x1 = int((y1 - intercept)/slope)
+    x2 = int((y2 - intercept)/slope)
     return np.array([x1,y1,x2,y2])
 
 def canny(image):
