@@ -1,24 +1,3 @@
-# TODO:
-- Run the contents of this README.md file through chatgpt to make what I've written more succinct and clear (rather than the rambling nonsense that's in here).
-- Create proper directories and sub-directories (i.e. /src, /src/test_videos)
-    - NOTE: this will likely require changing some things with the video path's,
-        which might require to import the 'os' python module to make it work more efficiently
-- Remove the data class 'Line'. Its only used twice (Lines are represented by numpy arrays and at the time, I needed something easier to work with).
-- Change variable names to be more appropriate, like : 'gang_shit_no_lame_shit'
-    ps. look around line 650 to see what that variable is for.
-- implement typing for the functions and methods
-    ```python 
-    import typing
-    ```
-    if you don't know a type of some function(as many passed are numpy or openCV objects) just run this code in the function:
-    ```python 
-    def foo(unknown_type):
-        print(type(unknown_type))
-        exit()
-    ```
-- implement pep-8 stylizing
-
-
 # Lane Detection using Python and Open CV
 ## Project Goal
 This project leverages the tools in Python and OpenCV to detect lanes in dash cam footage. My goal was to become more acquaintted with AI and computer vision algorithms to in my software to identify straight lanes, providing real-time visual feedback to users.
@@ -26,32 +5,7 @@ This project leverages the tools in Python and OpenCV to detect lanes in dash ca
 ## What was implemented
 In computer vision, a common tool for isolating objects in an image comes in the form of *masking*. To mask an image, we need to create a completely black (blank) image with the same height and width as the image we intend to mask. When we place a white polygon, such as a triangle or a square, within the blank image, we can merge this with the original, resulting in a new image containing contents of the original image only within the boundaries of the polygon.
 
-```python
-# NOTE: This exact code isn't in my program, but demonstrates how masks work
-# copy and paste it into a new .py file to view this demo
-import cv2
-import numpy as np
 
-# will save the image as a 2D array of pixel values
-img = cv2.imread('lane.jpg')
-img_height, img_width = img.shape[0],img.shape[1]
-
-# create a blank with the same height and width (also a 2d numpy array, but with all 0s representing black pixels)
-blank = np.zeros((img_height, img_width), dtype=np.uint8)
-
-# creating a rectangular mask to cut out the top 1/3 of the image
-rect_mask = cv2.rectangle(blank.copy(), (0, img_height//3+20), (img_width, img_height), 255, -1)
-r_masked_img = cv2.bitwise_and(img, img, mask = rect_mask)
-
-#displaying the images
-cv2.imshow('Original Image', img)
-cv2.imshow('Mask', rect_mask)
-cv2.imshow('Masked Original Image', r_masked_img)
-
-# press any key to exit
-cv2.waitKey(0)
-cv2.destroyAllWindows()
-```
 For dash cam frames, I went with a simple removal of the upper 1/3rd of the image since that is where most of the background is.
 
 
