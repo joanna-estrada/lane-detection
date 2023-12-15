@@ -1,12 +1,14 @@
 import cv2
 import numpy as np
 from dataclasses import dataclass
+import os
 import time
+import typing
+
 # TODO: Keep track of centroid and use the new lines to inform them of where a new centroid and new mask should be
-# NOTE: Gradients are apparently very faulty,
+# NOTE: Gradients are apparently very faulty.
 
 
-# TODO: Maybe get rid of this class, it's not used much
 @dataclass
 class Line:
     x1: int
@@ -20,24 +22,23 @@ class Line:
         return (self.y2 - self.y1) / (self.x2 - self.x1)
 
     def avg_with(self, other):
-        if not(isinstance(other, Line)):
+        if not (isinstance(other, Line)):
             return None
-        avx1 = (self.x1+other.x1)//2
-        avx2 = (self.x2+other.x2)//2
-        avy1 = (self.y1+other.y1)//2
-        avy2 = (self.y2+other.y2)//2
+        avx1 = (self.x1 + other.x1) // 2
+        avx2 = (self.x2 + other.x2) // 2
+        avy1 = (self.y1 + other.y1) // 2
+        avy2 = (self.y2 + other.y2) // 2
         return Line(avx1, avy1, avx2, avy2)
 
     def __str__(self):
         return f"({self.x1},{self.y1})->({self.x2},{self.y2})"
 
 
-# TODO: Maybe get rid of this class, it's not used much
 class ColorHSV:
     '''class for HSV colors:
         - HSV is kind of abstract when stored as a numpy array
-        - just useful for programming purposes.
     '''
+
     def __init__(self, hsv=None):
         if hsv is None:
             self.hsv = np.array([0, 0, 0], dtype=np.uint8)
@@ -71,16 +72,18 @@ class ColorHSV:
         v = self._check_range(v, 0, 255)
         self.hsv[2] = v
 
-    def __str__(self): return f"[H={self.hsv[0]}, S={self.hsv[1]}, V={self.hsv[2]}]"
+    def __str__(
+        self): return f"[ H = {self.hsv[0]}, S = {self.hsv[1]}, V = {self.hsv[2]}]"
 
 
 class HsvColorRange():
     '''class for HSV color ranges
-        - Intended to simplify broadening and minimizing 
+        - Intended to simplify broadening and minimizing
         HSV color ranges
     '''
+
     def __init__(self, name, v1=None, v2=None):
-        self.name:str = name
+        self.name: str = name
         self.lb = ColorHSV(v1)
         self.ub = ColorHSV(v2)
 
@@ -98,8 +101,8 @@ class HsvColorRange():
         cv2.imshow(f'{self.name} Upper Bound', upper_color_bgr)
         cv2.waitKey(0)
         cv2.destroyAllWindows()
-    
-    def modify_bound(self, isLower, h=0,s=0,v=0):
+
+    def modify_bound(self, isLower, h=0, s=0, v=0):
         if isLower:
             self.lb.hue += h
             self.lb.saturation += s
@@ -111,7 +114,7 @@ class HsvColorRange():
 
     def get_range(self):
         return [self.lb.hsv, self.ub.hsv]
-    
+
     def __str__(self):
         return f"{self.name} color range:\n\tLower:{self.lb}, Upper:{self.ub}\n"
 
@@ -120,11 +123,12 @@ def color_thresholding(image, color_masks):
     # initialize a blank image
     blank = np.zeros(image.shape[:2], dtype=np.uint8)
     # save the width and height of the image
-    height, width = image.shape[0],image.shape[1]
+    height, width = image.shape[0], image.shape[1]
     # create a rectangular mask that will display the approx. lower 2/3rd of the image
     # this is done to remove a portion of the sky and buildings.
-    rect_mask = cv2.rectangle(blank.copy(), (0, height//3+20), (width, height), 255, -1)
-    r_masked_img = cv2.bitwise_and(image, image, mask = rect_mask)
+    rect_mask = cv2.rectangle(
+        blank.copy(), (0, height // 3 + 20), (width, height), 255, -1)
+    r_masked_img = cv2.bitwise_and(image, image, mask=rect_mask)
     # Convert the image to the HSV color space
     hsv = cv2.cvtColor(r_masked_img, cv2.COLOR_BGR2HSV)
     # Create masks for yellow and white colors
@@ -136,37 +140,48 @@ def color_thresholding(image, color_masks):
     result = cv2.bitwise_and(image, image, mask=combined_mask)
     return result
 
+
 def sobel_edge_detection(img):
     image = cv2.cvtColor(img, cv2.COLOR_HSV2RGB)
     sobelx_b = cv2.Sobel(image[:, :, 0], cv2.CV_8UC1, 1, 0, ksize=9)
     sobelx_g = cv2.Sobel(image[:, :, 1], cv2.CV_8UC1, 1, 0, ksize=9)
     sobelx_r = cv2.Sobel(image[:, :, 2], cv2.CV_8UC1, 1, 0, ksize=9)
     rg = cv2.bitwise_or(sobelx_r, sobelx_g)
-    b = cv2.bitwise_or(rg,sobelx_b)
+    b = cv2.bitwise_or(rg, sobelx_b)
     return b
+
 
 def region_of_interest(image, polygons=None):
     height = image.shape[0]
-    if not(polygons):
-        # TODO: One thing that must be changed are the values in this numpy array, right now they are fixed, but they should be able to acclimate to different videos
+    if not (polygons):
+        # TODO: One thing that must be changed are the values in this numpy
+        # array, right now they are fixed, but they should be able to acclimate
+        # to different videos
         polygons = np.array([[(100, height), (1300, height), (550, 250)]])
-    # polygons variable takes in 3 points, plots them on an image, connects them to make a polygon and fills it in.
+    # polygons variable takes in 3 points, plots them on an image, connects
+    # them to make a polygon and fills it in.
     mask = np.zeros_like(image)
     cv2.fillPoly(mask, polygons, 255)
     masked_image = cv2.bitwise_and(image, mask)
     return masked_image
 
 
-def remove_outlier_lines(center_x,center_y, lines, x_slope_thresh, y_slope_thresh):
+def remove_outlier_lines(
+        center_x,
+        center_y,
+        lines,
+        x_slope_thresh,
+        y_slope_thresh):
     # List to store line segments closest to the center
     closest_lines = []
     for line in lines:
         x1, y1, x2, y2 = line[0]  # Extract line coordinates
         # Calculate the midpoint of the line segment
         if abs(x1 - x2) > x_slope_thresh and abs(y1 - y2) > y_slope_thresh:
-            midpoint_x, midpoint_y = (x1+x2)//2, (y1+y2)//2
+            midpoint_x, midpoint_y = (x1 + x2) // 2, (y1 + y2) // 2
             # Calculate the Euclidean distance from the midpoint to the center
-            distance_to_center = np.sqrt((midpoint_x - center_x)**2 + (midpoint_y - center_y)**2)
+            distance_to_center = np.sqrt(
+                (midpoint_x - center_x)**2 + (midpoint_y - center_y)**2)
             # Set a threshold distance for considering lines
             thresh_min = 50
             threshold_distance = 210  # Adjust as needed
@@ -179,9 +194,9 @@ def remove_outlier_lines(center_x,center_y, lines, x_slope_thresh, y_slope_thres
 def make_coordinates(image, line_parameters):
     slope, intercept = line_parameters
     y1 = image.shape[0]
-    y2 = int(y1*(3/5))
-    x1 = int((y1 - intercept)/slope)
-    x2 = int((y2 - intercept)/slope)
+    y2 = int(y1 * (3 / 5))
+    x1 = int((y1 - intercept) / slope)
+    x2 = int((y2 - intercept) / slope)
     return np.array([x1, y1, x2, y2])
 
 
@@ -211,7 +226,7 @@ def average_slope_intercept(image, lines):
 
 
 class PreProcessingMask():
-    '''A class that performs several functions on the first 
+    '''A class that performs several functions on the first
     few frames of a video in order to store data about:
         - Where the road generally is in the picture
         - the general orientation of the lane lines
@@ -220,32 +235,33 @@ class PreProcessingMask():
         - masking the entire road
         - masking the left side of the road
         - masking the right side of the road
-        - masking certain colors in the image  
+        - masking certain colors in the image
     '''
-    def __init__(self,cap, yellow_r=None, white_r=None):
+
+    def __init__(self, cap, yellow_r=None, white_r=None):
         self.first_few_frames = [cap.read()[1] for _ in range(8)]
         self.height = self.first_few_frames[0].shape[0]
         self.width = self.first_few_frames[0].shape[1]
-        self.centroid = [self.width//2, self.height//2]
+        self.centroid = [self.width // 2, self.height // 2]
         self.averaged_lines = []
         if yellow_r is None:
-            self.yellow_range = HsvColorRange('yellow',np.array([15, 60, 20]), np.array([25, 255, 255]))
+            self.yellow_range = HsvColorRange(
+                'yellow', np.array([15, 60, 20]), np.array([25, 255, 255]))
         else:
             self.yellow_range = yellow_r
         if white_r is None:
-            self.white_range = HsvColorRange('white', np.array([0, 0, 180]), np.array([255, 255, 255]))
+            self.white_range = HsvColorRange('white', np.array(
+                [0, 0, 180]), np.array([255, 255, 255]))
         else:
             self.white_range = white_r
-        
+
         self.mask = np.zeros((self.height, self.width), dtype=np.uint8)
         self.get_preprocessing_mask()
 
-
     def get_color_masks(self):
-        '''mainly used when passing them in as arguments to 
+        '''mainly used when passing them in as arguments to
         be used by the color_thresholding function'''
         return [self.yellow_range.get_range(), self.white_range.get_range()]
-
 
     def get_preprocessing_mask(self):
         '''initial attempt at determining where the road is.'''
@@ -257,48 +273,54 @@ class PreProcessingMask():
             thresh_img = color_thresholding(frame, self.get_color_masks())
             sobel_image = sobel_edge_detection(thresh_img)
             cropped_image = region_of_interest(sobel_image)
-            lines = cv2.HoughLinesP(cropped_image, 21, np.pi/180, 20,9,2)
-            nearest_to_center = remove_outlier_lines(self.centroid[0], self.centroid[1],lines, 2,2)
+            lines = cv2.HoughLinesP(cropped_image, 21, np.pi / 180, 20, 9, 2)
+            nearest_to_center = remove_outlier_lines(
+                self.centroid[0], self.centroid[1], lines, 2, 2)
             avgLn = average_slope_intercept(cropped_image, nearest_to_center)
             self.averaged_lines.append(avgLn)
 
         left_line = Line(*self.averaged_lines[0][0])
         right_line = Line(*self.averaged_lines[0][1])
-        for i in range(len(self.averaged_lines)-1):
-            left_line = left_line.avg_with(Line(*self.averaged_lines[i+1][0]))
-            right_line = right_line.avg_with(Line(*self.averaged_lines[i+1][1]))
+        for i in range(len(self.averaged_lines) - 1):
+            left_line = left_line.avg_with(
+                Line(*self.averaged_lines[i + 1][0]))
+            right_line = right_line.avg_with(
+                Line(*self.averaged_lines[i + 1][1]))
 
         self.higher = min(right_line.y2, left_line.y2)
         polygon_points = np.array([
             [0, self.height],
             [self.width, self.height],
-            [right_line.x2+90, self.higher],
-            [left_line.x2-90, self.higher]
+            [right_line.x2 + 90, self.higher],
+            [left_line.x2 - 90, self.higher]
         ], np.int32)
-        self.centroid = [np.mean(polygon_points[:,0]),np.mean(polygon_points[:,1])]
-
+        self.centroid = [np.mean(polygon_points[:, 0]),
+                         np.mean(polygon_points[:, 1])]
         cv2.fillPoly(self.mask, [polygon_points], 255)
 
         blank = np.zeros(self.first_few_frames[0].shape[:2], dtype=np.uint8)
 
-
-        l_mk = cv2.rectangle(blank.copy(), (0, self.height//2),
+        l_mk = cv2.rectangle(blank.copy(), (0, self.height // 2),
                              (int(self.centroid[0]), self.height), 255, -1)
-        r_mk = cv2.rectangle(blank.copy(), (int(self.centroid[0]), self.height//2),
-                             (self.width, self.height), 255, -1)
-        self.lane_masks = [cv2.bitwise_and(l_mk, self.mask), cv2.bitwise_and(r_mk, self.mask)]
-        
+        r_mk = cv2.rectangle(
+            blank.copy(), (int(
+                self.centroid[0]), self.height // 2), (self.width, self.height), 255, -1)
+        self.lane_masks = [
+            cv2.bitwise_and(
+                l_mk, self.mask), cv2.bitwise_and(
+                r_mk, self.mask)]
+
         time.sleep(1)
         # self.test_mask_validity()
         self.determine_large_areas()
-
 
     def find_straightest_dotted_line(self, frame):
         """ Finds the straightest dotted line in the frame """
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY)
 
-        contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        contours, _ = cv2.findContours(
+            thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         smoothed_contours = self.image_contouring(frame, contours)
 
         best_line = None
@@ -306,7 +328,8 @@ class PreProcessingMask():
 
         for contour in smoothed_contours:
             # Filter small contours
-            if cv2.contourArea(contour) < 100:  # Threshold might need adjustment
+            if cv2.contourArea(
+                    contour) < 100:  # Threshold might need adjustment
                 continue
             # Fit a line to the contour
             [vx, vy, x, y] = cv2.fitLine(contour, cv2.DIST_L2, 0, 0.01, 0.01)
@@ -318,20 +341,20 @@ class PreProcessingMask():
         # Draw the best line
         if best_line is not None:
             vx, vy, x, y = best_line
-            lefty = int((-x*vy/vx) + y)
-            righty = int(((gray.shape[1]-x)*vy/vx)+y)
+            lefty = int((-x * vy / vx) + y)
+            righty = int(((gray.shape[1] - x) * vy / vx) + y)
             return best_line
         return
-    
 
     def find_largest_solid_line(self, frame):
         """ Finds the largest solid line within the largest contour """
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY)
 
-        contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        contours, _ = cv2.findContours(
+            thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         smoothed_contours = self.image_contouring(frame, contours)
-        
+
         largest_contour = None
         max_area = 0
         # Find the largest contour
@@ -343,9 +366,9 @@ class PreProcessingMask():
 
         # Fit a line to the largest contour
         if largest_contour is not None:
-            [vx, vy, x, y] = cv2.fitLine(largest_contour, cv2.DIST_L2, 0, 0.01, 0.01)
+            [vx, vy, x, y] = cv2.fitLine(
+                largest_contour, cv2.DIST_L2, 0, 0.01, 0.01)
             return [vx, vy, x, y]
-
 
     def draw_line(self, frame, line, color):
         vx, vy, x, y = line
@@ -353,8 +376,7 @@ class PreProcessingMask():
         righty = int(((self.width - x) * vy / vx) + y)
         cv2.line(frame, (self.width - 1, righty), (0, lefty), color, 2)
 
-    
-    def image_contouring(self, image, contours, alpha = 0.01):
+    def image_contouring(self, image, contours, alpha=0.01):
         """Smooths the contours of an image."""
         smoothed_contours = []
         for contour in contours:
@@ -363,30 +385,26 @@ class PreProcessingMask():
             approx = cv2.approxPolyDP(contour, epsilon, True)
             smoothed_contours.append(approx)
         return smoothed_contours
-    
 
     def test_mask_validity(self, frame, mask):
-        ''' Identify whether there are large regions in the image 
+        ''' Identify whether there are large regions in the image
         after applying the mask
-        TODO: Determine whether this function is actually necessary'''
+        '''
         # Convert to grayscale and apply threshold
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-
+        _, thresh = cv2.threshold(
+            gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
         # Find contours
-        contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
+        contours, _ = cv2.findContours(
+            thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         # Filter and smooth contours
         smoothed_contours = self.image_contouring(frame, contours)
-
-        # cv2.drawContours(frame, [smoothed_contours],-1,(255))
         for contour in contours:
-            cv2.drawContours(frame, [contour], -1, (0, 255, 0), 3)  # Green contours
-
-        # Display the frame with drawn contours
-        
+            cv2.drawContours(frame, [contour], -
+                             1, (0, 255, 0), 3)  # Green contours
         return False
-        # return large_area_count > 0  # Returns True if large areas are detected
+        # return large_area_count > 0  # Returns True if large areas are
+        # detected
 
     def calculate_slope(self, line):
         # Assuming line is in format (vx, vy, x, y)
@@ -427,28 +445,28 @@ class PreProcessingMask():
             fr = cv2.bitwise_and(thresh, thresh, mask=self.mask)
             fr_1 = cv2.bitwise_and(thresh, thresh, mask=self.lane_masks[0])
             fr_r = cv2.bitwise_and(thresh, thresh, mask=self.lane_masks[1])
-            
+
             solidLnLeft = self.find_largest_solid_line(fr_1.copy())
             solidLnRight = self.find_largest_solid_line(fr_r.copy())
             dotLnLeft = self.find_straightest_dotted_line(fr_1.copy())
             dotLnRight = self.find_straightest_dotted_line(fr_r.copy())
             try:
                 if solidLnLeft == dotLnLeft:
-                    self.draw_line(fr, solidLnLeft, (255,0,0))
+                    self.draw_line(fr, solidLnLeft, (255, 0, 0))
                     left_lines.append(solidLnLeft)
                     l_slopes.append(self.calculate_slope(solidLnLeft))
                     avg_l_slope = np.mean(l_slopes)
                     var_l_slope = np.var(l_slopes)
-            except:
+            except BaseException:
                 pass
             try:
                 if solidLnRight == dotLnRight:
-                    self.draw_line(fr, solidLnRight, (255,0,0))
+                    self.draw_line(fr, solidLnRight, (255, 0, 0))
                     right_lines.append(solidLnRight)
                     r_slopes.append(self.calculate_slope(solidLnRight))
                     avg_r_slope = np.mean(r_slopes)
                     var_r_slope = np.var(r_slopes)
-            except:
+            except BaseException:
                 pass
             # Process solid and dotted lines for left lane
             if solidLnLeft is not None:
@@ -488,23 +506,24 @@ class PreProcessingMask():
                 var_r_slope = np.var(r_slopes)
                 if var_r_slope < l_margin:
                     r_margin = var_r_slope
-    
+
         self.l_slope = avg_l_slope
         self.r_slope = avg_r_slope
         self.draw_triangle()
-                
 
     def draw_triangle(self):
         '''Adds cuts out little mask from the  bottom center of image'''
         mk = np.zeros((self.height, self.width), dtype=np.uint8)
         # Calculate end points for the left and right lines
         if self.l_slope != float('inf') and self.l_slope != -float('inf'):
-            x_left = int(self.centroid[0] - (self.centroid[1] - self.height) / self.l_slope)
+            x_left = int(
+                self.centroid[0] - (self.centroid[1] - self.height) / self.l_slope)
         else:
             x_left = self.centroid[0]
 
         if self.r_slope != float('inf') and self.r_slope != -float('inf'):
-            x_right = int(self.centroid[0] + (self.height - self.centroid[1]) / self.r_slope)
+            x_right = int(
+                self.centroid[0] + (self.height - self.centroid[1]) / self.r_slope)
         else:
             x_right = self.centroid[0]
 
@@ -512,11 +531,13 @@ class PreProcessingMask():
             (x_left, self.height), (x_right, self.height), (self.centroid[0], self.centroid[1])
         ], np.int32)
 
-        cv2.fillPoly(mk, [polygon_points],255)
+        cv2.fillPoly(mk, [polygon_points], 255)
         mk = cv2.bitwise_not(mk)
-        self.mask = cv2.bitwise_and(self.mask,self.mask,mask = mk)
-        self.lane_masks[0] = cv2.bitwise_and(self.lane_masks[0],self.lane_masks[0],mask = mk)
-        self.lane_masks[1] = cv2.bitwise_and(self.lane_masks[1],self.lane_masks[1],mask = mk)
+        self.mask = cv2.bitwise_and(self.mask, self.mask, mask=mk)
+        self.lane_masks[0] = cv2.bitwise_and(
+            self.lane_masks[0], self.lane_masks[0], mask=mk)
+        self.lane_masks[1] = cv2.bitwise_and(
+            self.lane_masks[1], self.lane_masks[1], mask=mk)
 
 
 def avg_lin(lines):
@@ -563,7 +584,8 @@ def display_lines(image, lines):
         for line in lines:
             if line is not None:
                 x1, y1, x2, y2 = line  # Extract the coordinates from the array
-                cv2.line(line_image, (x1, y1), (x2, y2), (255, 0, 0), 10)  # Increase thickness here if needed
+                # Increase thickness here if needed
+                cv2.line(line_image, (x1, y1), (x2, y2), (255, 0, 0), 10)
     return line_image
 
 
@@ -595,81 +617,101 @@ def run(name, prp_mask):
     i = 0
     avg_left = None
     avg_right = None
-    while(cap.isOpened()):
-        frame = cap.read()[1]
-            
-        if frame is None:
-            break
-        thresh_img = color_thresholding(frame,prp_mask.get_color_masks())
-        kernel = np.ones((5,5), np.uint8)
-        new = cv2.dilate(thresh_img, kernel)
-        new = cv2.cvtColor(new, cv2.COLOR_BGR2GRAY)
-        gang_shit_no_lame_shit = cv2.bitwise_and(new, new, mask=prp_mask.mask)
-        gang_shit_no_lame_shit = cv2.cvtColor(gang_shit_no_lame_shit, cv2.COLOR_GRAY2RGB)
-        left_img = cv2.bitwise_and(new, new, mask=prp_mask.lane_masks[0])
-        right_img = cv2.bitwise_and(new, new, mask=prp_mask.lane_masks[1])
+    try:
+        while cap.isOpened():
+            frame = cap.read()[1]
+            if frame is None:
+                break
+            thresh_img = color_thresholding(frame, prp_mask.get_color_masks())
+            kernel = np.ones((5, 5), np.uint8)
+            new = cv2.dilate(thresh_img, kernel)
+            new = cv2.cvtColor(new, cv2.COLOR_BGR2GRAY)
+            final_img = cv2.bitwise_and(new, new, mask=prp_mask.mask)
+            final_img = cv2.cvtColor(final_img, cv2.COLOR_GRAY2RGB)
+            left_img = cv2.bitwise_and(new, new, mask=prp_mask.lane_masks[0])
+            right_img = cv2.bitwise_and(new, new, mask=prp_mask.lane_masks[1])
 
-        # # focus region to be the lower triangular portion of the image
-        l_lines = cv2.HoughLinesP(image=left_img,rho=9, theta=np.pi/180,
-                                threshold=50, lines=np.array([]),
-                                minLineLength=min_len, maxLineGap=min_len*0.7)
-        filtered_l = filter_lines_by_slope(l_lines,prp_mask.l_slope, 0.25)
-        average_left = avg_lin(filtered_l)
+            # focus region to be the lower triangular portion of the image
+            l_lines = cv2.HoughLinesP(
+                image=left_img,
+                rho=9,
+                theta=np.pi / 180,
+                threshold=50,
+                lines=np.array(
+                    []),
+                minLineLength=min_len,
+                maxLineGap=min_len * 0.7)
+            filtered_l = filter_lines_by_slope(l_lines, prp_mask.l_slope, 0.25)
+            average_left = avg_lin(filtered_l)
 
-        r_lines = cv2.HoughLinesP(image=right_img,rho=9, theta=np.pi/180,
-                                threshold=50, lines=np.array([]),
-                                minLineLength=min_len, maxLineGap=min_len*0.7)
-        filtered_r = filter_lines_by_slope(r_lines, prp_mask.r_slope, 0.25)
-        average_right = avg_lin(filtered_r)
+            r_lines = cv2.HoughLinesP(
+                image=right_img,
+                rho=9,
+                theta=np.pi / 180,
+                threshold=50,
+                lines=np.array(
+                    []),
+                minLineLength=min_len,
+                maxLineGap=min_len * 0.7)
+            filtered_r = filter_lines_by_slope(r_lines, prp_mask.r_slope, 0.25)
+            average_right = avg_lin(filtered_r)
 
+            if i % 80 == 0:
+                try:
+                    if avg_left is None:
+                        avg_left = average_left
+                    else:
+                        avg_left = avg_lin(np.array([avg_left, average_left]))
+                    if avg_right is None:
+                        avg_right = average_right
+                    else:
+                        avg_left = avg_lin(np.array(avg_right, average_right))
+                except BaseException:
+                    pass
+                i += 1
 
-        if i%80 == 0:
+            if average_left is None:
+                average_left = avg_left
+            if average_right is None:
+                average_right = avg_right
+
+            averaged_lines = [average_left, average_right]
+
+            # NOTE: these will show the detected line over what we see
+            line_image = display_lines(frame, averaged_lines)
+            combo_image = cv2.addWeighted(frame, 0.75, line_image, 1, 1)
+
+            # NOTE: these will show the detected line over what the computer sees
+            # line_image = display_lines(final_img, averaged_lines)
+            # combo_image = cv2.addWeighted(final_img, 0.75, line_image, 1, 1)
+
             try:
-                if avg_left is None:
-                    avg_left = average_left
-                else:
-                    avg_left = avg_lin(np.array([avg_left, average_left]))
-                if avg_right is None:
-                    avg_right = average_right
-                else:
-                    avg_left = avg_lin(np.array(avg_right, average_right))
-            except:
+                prp_mask.l_slope = np.mean(
+                    [prp_mask.l_slope, calculate_line_slope(average_left)])
+                prp_mask.r_slope = np.mean(
+                    [prp_mask.r_slope, calculate_line_slope(average_right)])
+            except BaseException:
                 pass
-        i+=1
+            cv2.imshow('result', combo_image)
+            if cv2.waitKey(1) == ord('q'):
+                break
+            cv2.destroyAllWindows()
+    except Exception as e:
+        print(f"Error occurred for {name}: {str(e)}")
+    finally:
+            cap.release()
 
-        if average_left is None:
-            average_left = avg_left
-        if average_right is None:
-            average_right = avg_right
-        
-        averaged_lines = [average_left, average_right]
+video_folder = os.path.join(os.getcwd(), 'src', 'test_videos')
+videos = [
+    'project_video.mp4',
+    'solidWhiteRight.mp4',
+    'solidYellowLeft.mp4',
+    'test2.mp4']
 
-        # NOTE: these will show the detected line over what we see
-        line_image = display_lines(frame, averaged_lines)
-        combo_image = cv2.addWeighted(frame, 0.75, line_image, 1, 1)
-
-        # NOTE: these will show the detected line over what the computer sees
-        # line_image = display_lines(gang_shit_no_lame_shit, averaged_lines)
-        # combo_image = cv2.addWeighted(gang_shit_no_lame_shit, 0.75, line_image, 1, 1)
-
-        try:
-            prp_mask.l_slope = np.mean([prp_mask.l_slope, calculate_line_slope(average_left)])
-            prp_mask.r_slope = np.mean([prp_mask.r_slope, calculate_line_slope(average_right)])
-        except:
-            pass
-        cv2.imshow('result',combo_image)
-        if cv2.waitKey(1) == ord('q'):
-            break
-        
-    cv2.destroyAllWindows()
-
-if __name__ == "__main__":
-    videos = ['project_video.mp4','solidWhiteRight.mp4','solidYellowLeft.mp4', 'test2.mp4']
-
-    for v in videos:
-        try:
-            c = cv2.VideoCapture(v)
-            prp_mask = PreProcessingMask(c)
-            run(v, prp_mask)
-        except:
-            print(f"Error occured for {v}")
+for v in videos:
+    try:
+        c = cv2.VideoCapture(v)
+        prp_mask = PreProcessingMask(c)
+        run(v, prp_mask)
+    except BaseException:
+        print(f"Error occured for {v}: {str(c)}")
